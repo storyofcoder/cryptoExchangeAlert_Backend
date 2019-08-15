@@ -5,6 +5,7 @@ var userSchema = new Schema({
     name:{type:String, required:true},
     bnbdata:{type:Object, required: true},
     oexdata:{type:Object, required: true},
+    notidata: {type:Object, required: true}
 });
 
 
