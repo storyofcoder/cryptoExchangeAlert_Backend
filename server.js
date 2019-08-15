@@ -179,9 +179,9 @@ app.get('/getSymbol', function (req, res, next) {
     let allSymbols = [];
     binance.bookTickers((error, ticker) => {
         ticker.map((data, index) => {
-                if(index < 580){
-                    allSymbols.push(data.symbol);
-                }
+            if (index < 580) {
+                allSymbols.push(data.symbol);
+            }
         });
         res.status(200).json({status: true, data: allSymbols});
     });
@@ -219,11 +219,11 @@ app.post('/userDetails', function (req, res, next) {
  * @return status
  */
 app.post('/currentExchange', function (req, res, next) {
-    if(req.body.currency == 'BNB'){
+    if (req.body.currency == 'BNB') {
         binance.prices(req.body.symbol, (error, ticker) => {
             res.status(200).json({data: {price: Object.values(ticker)[0]}});
         });
-    }else{
+    } else {
         rp(`https://www.okex.com/api/spot/v3/instruments/${req.body.symbol}/trades`)
             .then(function (htmlString) {
                 res.status(200).json({status: true, data: {price: JSON.parse(htmlString)[0].price}});
@@ -234,8 +234,7 @@ app.post('/currentExchange', function (req, res, next) {
     }
 });
 
-let bnbData = {};
-let okbData = [];
+let notiData = {};
 
 /**
  * @description. it handle the http request that handle addition of exchange details according to user
@@ -245,7 +244,6 @@ let okbData = [];
  */
 app.post('/addExchange', function (req, res, next) {
 
-    const currency = req.body.currency;
     const symbol = req.body.exchange;
 
     let userData = {
@@ -258,32 +256,20 @@ app.post('/addExchange', function (req, res, next) {
         lastNoti: 0
     };
 
-    Data.findOne({ name: 'data' }, function (err, doc){
-        let newData = {};
-        if(currency == 'BNB'){
-            newData = doc.bnbdata;
-            if(!newData[symbol]){
-                newData[symbol] = [];
-            }
-            newData[symbol].push(userData);
-            bnbData = newData;
-            doc.bnbdata = JSON.parse(JSON.stringify(newData));
-        }else{
-            newData = doc.oexdata;
-            if(!newData[symbol]){
-                newData[symbol] = [];
-            }
-            newData[symbol].push(userData);
-            okbData = newData;
-            doc.oexdata = JSON.parse(JSON.stringify(newData));
+    Data.findOne({name: 'data'}, function (err, doc) {
+        let newData = doc.notidata;
+        if (!newData[symbol]) {
+            newData[symbol] = [];
         }
+        newData[symbol].push(userData);
+        notiData = newData;
+        doc.notidata = JSON.parse(JSON.stringify(newData));
         doc.save();
     });
 
-    let clientList = {};
     Client.findOne({email: req.body.userDetails.email}, function (err, client) {
         if (client) {
-            clientList = client.data;
+            let clientList = client.data;
             clientList.list.push({
                 currency: req.body.currency,
                 exchange: req.body.exchange,
@@ -307,48 +293,27 @@ app.post('/addExchange', function (req, res, next) {
  */
 app.post('/deleteOne', function (req, res, next) {
 
-    const currency = req.body.currency;
     const symbol = req.body.exchange;
-
-    Data.findOne({ name: 'data' }, function (err, doc){
-        let newData = {};
-        if(currency == 'BNB'){
-            newData = doc.bnbdata;
-            newData[symbol].map((data,i)=>{
-                if ((data.emaiL == req.body.userDetails.email) && (data.price == req.body.price)) {
-                    newData[symbol].splice(i, 1);
-                }
-            });
-            bnbData = newData;
-            Data.update({name: 'data'}, {
-                bnbdata : newData
-            }, function (err, numberAffected, rawResponse) {
-                if (err) {
-                    res.status(403).json({message: 'database error', status: false});
-                }
-            });
-        }else{
-            newData = doc.oexdata;
-            newData[symbol].map((data,i)=>{
-                if ((data.emaiL == req.body.userDetails.email) && (data.price == req.body.price)) {
-                    newData[symbol].splice(i, 1);
-                }
-            });
-            okbData = newData;
-            Data.update({name: 'data'}, {
-                oexdata : newData
-            }, function (err, numberAffected, rawResponse) {
-                if (err) {
-                    res.status(403).json({message: 'database error', status: false});
-                }
-            });
-        }
+    Data.findOne({name: 'data'}, function (err, doc) {
+        let newData = doc.notidata;
+        newData[symbol].map((data, i) => {
+            if ((data.emaiL == req.body.userDetails.email) && (data.price == req.body.price)) {
+                newData[symbol].splice(i, 1);
+            }
+        });
+        notiData = newData;
+        Data.update({name: 'data'}, {
+            notidata: newData
+        }, function (err, numberAffected, rawResponse) {
+            if (err) {
+                res.status(403).json({message: 'database error', status: false});
+            }
+        });
     });
 
-    let clientList = {};
     Client.findOne({email: req.body.userDetails.email}, function (err, client) {
         if (client) {
-            clientList = client.data;
+            let clientList = client.data;
             clientList.list.splice(req.body.index, 1);
 
             Client.update({email: req.body.userDetails.email}, {
@@ -370,49 +335,29 @@ app.post('/deleteOne', function (req, res, next) {
  * @return status
  */
 app.post('/modifyOne', function (req, res, next) {
-    let clientList = {};
+
     Client.findOne({email: req.body.userDetails.email}, function (err, client) {
         if (client) {
-            clientList = client.data;
+            let clientList = client.data;
             const oldData = clientList.list[req.body.index];
 
-            Data.findOne({ name: 'data' }, function (err, doc){
-                let newData = {};
-                if(oldData.currency == 'BNB'){
-                    newData = doc.bnbdata;
-                    newData[oldData.exchange].map((data,i)=>{
-                        if ((data.emaiL == req.body.userDetails.email) && (data.price == oldData.price)) {
-                            data.operation = req.body.modifyData.noti;
-                            data.price = req.body.modifyData.price;
-                            data.lastNoti = 0
-                        }
-                    });
-                    bnbData = newData;
-                    Data.update({name: 'data'}, {
-                        bnbdata : newData
-                    }, function (err, numberAffected, rawResponse) {
-                        if (err) {
-                            res.status(403).json({message: 'database error', status: false});
-                        }
-                    });
-                }else{
-                    newData = doc.oexdata;
-                    newData[oldData.exchange].map((data,i)=>{
-                        if ((data.emaiL == req.body.userDetails.email) && (data.price == oldData.price)) {
-                            data.operation = req.body.modifyData.noti;
-                            data.price = req.body.modifyData.price;
-                            data.lastNoti = 0
-                        }
-                    });
-                    okbData = newData;
-                    Data.update({name: 'data'}, {
-                        oexdata : newData
-                    }, function (err, numberAffected, rawResponse) {
-                        if (err) {
-                            res.status(403).json({message: 'database error', status: false});
-                        }
-                    });
-                }
+            Data.findOne({name: 'data'}, function (err, doc) {
+                let newData = doc.notidata;
+                newData[oldData.exchange].map((data, i) => {
+                    if ((data.emaiL == req.body.userDetails.email) && (data.price == oldData.price)) {
+                        data.operation = req.body.modifyData.noti;
+                        data.price = req.body.modifyData.price;
+                        data.lastNoti = 0
+                    }
+                });
+                notiData = newData;
+                Data.update({name: 'data'}, {
+                    notidata: newData
+                }, function (err, numberAffected, rawResponse) {
+                    if (err) {
+                        res.status(403).json({message: 'database error', status: false});
+                    }
+                });
             });
 
             clientList.list[req.body.index] = {
@@ -435,15 +380,14 @@ app.post('/modifyOne', function (req, res, next) {
 });
 
 /**
- * @function setData set on bnbData and okbData
+ * @function setData set on notification Data
  *
  * @parameters void
  * @return void
  */
 function setData() {
-    Data.findOne({ name: 'data' }, function (err, doc){
-        bnbData = doc.bnbdata;
-        okbData = doc.oexdata;
+    Data.findOne({name: 'data'}, function (err, doc) {
+        notiData = doc.notidata;
     });
 }
 
@@ -459,13 +403,10 @@ function oxbSocket() {
     rp('https://www.okex.com/api/spot/v3/instruments/ticker')
         .then(function (htmlString) {
             JSON.parse(htmlString).map((obj) => {
-                if(!okbData[obj.product_id]){
-                    okbData[obj.product_id] = [];
-                }
                 okbSymbolString.push(`"spot/trade:${obj.product_id}"`);
             });
 
-           const query = `{"op": "subscribe", "args": [ ${okbSymbolString} ]}`;
+            const query = `{"op": "subscribe", "args": [ ${okbSymbolString} ]}`;
 
             ws.on('open', function open() {
                 ws.send(query);
@@ -473,30 +414,31 @@ function oxbSocket() {
 
             ws.on('message', function incoming(data) {
                 if (data instanceof String) {
-                   // console.log(data)
+                    // console.log(data)
                 } else {
                     try {
                         let a = pako.inflateRaw(data, {to: 'string'});
                         a = JSON.parse(a);
 
-                        if(a.data){
-                            a.data.map((obj)=>{
-                               // console.log( obj.instrument_id + " " + obj.price);
+                        if (a.data) {
+                            a.data.map((obj) => {
+                                // console.log( obj.instrument_id + " " + obj.price);
 
-                                if (okbData[obj.instrument_id]) {
-                                    okbData[obj.instrument_id].map((data,index) => {
+                                if (notiData[obj.instrument_id]) {
+                                    notiData[obj.instrument_id].map((data, index) => {
                                         if ((Math.round((new Date()).getTime() / 1000) - data.lastNoti) > 3600) {
                                             if ((parseFloat(data.price, 10) <= parseFloat(obj.price, 10)) && (data.operation == 'More or equal')
                                                 || (parseFloat(data.price, 10) > parseFloat(obj.price, 10)) && (data.operation == 'Less than')) {
-                                                console.log('------------------------------------ found '+ data.operation + " "  + obj.instrument_id + ' ' + obj.price);
+                                                console.log('------------------------------------ found ' + data.operation + " " + obj.instrument_id + ' ' + obj.price);
 
-                                                okbData[obj.instrument_id][index].lastNoti = Math.round((new Date()).getTime() / 1000);
+                                                notiData[obj.instrument_id][index].lastNoti = Math.round((new Date()).getTime() / 1000);
                                                 sendEmail(data.name, obj.instrument_id, data.emaiL, data.operation, data.price, obj.price);
-                                                // sendSms(data.name, obj.instrument_id, data.number, data.operation, data.price, obj.price);
+                                                sendSms(data.name, obj.instrument_id, data.number, data.operation, data.price, obj.price);
 
                                                 Data.update({name: 'data'}, {
-                                                    oexdata : okbData
-                                                }, function (err, numberAffected, rawResponse) {});
+                                                    notidata: notiData
+                                                }, function (err, numberAffected, rawResponse) {
+                                                });
 
                                             }
                                         }
@@ -506,7 +448,7 @@ function oxbSocket() {
                         }
 
                     } catch (err) {
-                       // console.log(err)
+                        // console.log(err)
                     }
                 }
             });
@@ -527,29 +469,27 @@ function bnbSocket() {
     binance.bookTickers((error, ticker) => {
         ticker.map((data, index) => {
             if (index < 580) {
-                if(!bnbData[data.symbol]){
-                    bnbData[data.symbol] = [];
-                }
                 allSymbols.push(data.symbol);
             }
         });
         binance.websockets.trades(allSymbols, (trades) => {
             let {s: symbol, p: price} = trades;
-           // console.log(symbol);
-            if (bnbData[symbol]) {
-                bnbData[symbol].map((data,index) => {
+            // console.log(symbol);
+            if (notiData[symbol]) {
+                notiData[symbol].map((data, index) => {
                     if ((Math.round((new Date()).getTime() / 1000) - data.lastNoti) > 3600) {            /*next notification to same exchange send after 1 hour*/
                         if ((parseFloat(data.price, 10) <= parseFloat(price, 10)) && (data.operation == 'More or equal')
                             || (parseFloat(data.price, 10) > parseFloat(price, 10)) && (data.operation == 'Less than')) {
-                            console.log('------------------------------------ found '+ data.operation + " "  + symbol + ' ' + price);
+                            console.log('------------------------------------ found ' + data.operation + " " + symbol + ' ' + price);
 
-                            bnbData[symbol][index].lastNoti = Math.round((new Date()).getTime() / 1000);
+                            notiData[symbol][index].lastNoti = Math.round((new Date()).getTime() / 1000);
                             Data.update({name: 'data'}, {
-                                bnbdata : bnbData
-                            }, function (err, numberAffected, rawResponse) {});
+                                notidata: notiData
+                            }, function (err, numberAffected, rawResponse) {
+                            });
 
-                            sendEmail(data.name, symbol, data.emaiL, data.operation, data.price, price);
-                            sendSms(data.name, symbol, data.number, data.operation, data.price, price);
+                           sendEmail(data.name, symbol, data.emaiL, data.operation, data.price, price);
+                           sendSms(data.name, symbol, data.number, data.operation, data.price, price);
                         }
                     }
                 })
@@ -565,7 +505,7 @@ function bnbSocket() {
  * @return void
  */
 function sendEmail(name, exchange, email, operation, price, rate) {
-    async function main(){
+    async function main() {
 
         // Generate test SMTP service account from ethereal.email
         // Only needed if you don't have a real mail account for testing
@@ -573,7 +513,7 @@ function sendEmail(name, exchange, email, operation, price, rate) {
 
         // create reusable transporter object using the default SMTP transport
         let transporter = nodemailer.createTransport({
-            service:'gmail',
+            service: 'gmail',
             // port: 587,
             secure: false, // true for 465, false for other ports
             auth: {
@@ -638,9 +578,9 @@ function sendSms(name, exchange, userNumber, operation, price, rate) {
  * @return void
  */
 function autoStart() {
-      bnbSocket();
-      oxbSocket();
-      setData();
+    bnbSocket();
+    oxbSocket();
+    setData();
 }
 
 
