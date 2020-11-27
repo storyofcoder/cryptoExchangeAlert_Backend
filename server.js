@@ -9,8 +9,8 @@ const Data = require('./models/data');
 const rp = require('request-promise');
 
 const binance = require('node-binance-api')().options({
-    APIKEY: 'Ir5KgbsKhPlQYYqqAy1qkhHKic7bQAgqoDMEBsQddtcX3Le6oL2MNpifivEMTd4q',
-    APISECRET: 'vlSzzb0rEXluKmZ1R00c8QCuOP4mQ3aIREhHDi0V4qnh02hMw6B01UUwDqvW0fdn',
+    APIKEY: '',
+    APISECRET: '',
     useServerTime: true // If you get timestamp errors, synchronize to server time at startup
 });
 const ws = new WebSocket('wss://real.okex.com:8443/ws/v3');
@@ -517,8 +517,8 @@ function sendEmail(name, exchange, email, operation, price, rate) {
             // port: 587,
             secure: false, // true for 465, false for other ports
             auth: {
-                user: 'munny231197@gmail.com', // generated ethereal user
-                pass: 'timewillchange' // generated ethereal password
+                user: '', // generated ethereal user
+                pass: '' // generated ethereal password
             }
         });
 
@@ -553,8 +553,8 @@ function sendEmail(name, exchange, email, operation, price, rate) {
  */
 function sendSms(name, exchange, userNumber, operation, price, rate) {
 
-    let test_api_key = "FXTQTY3H00LQLIJKZ0OQUGFGVSKRJFZ4";
-    let test_secret_id = "4D9343HY1HQE0MC4";
+    let test_api_key = "";
+    let test_secret_id = "";
     let api_use = "stage";
     let any_name_or_number = "Munny Kumar";
     let mobile_no_to_be_send = userNumber;
